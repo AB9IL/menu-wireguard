@@ -1,0 +1,17 @@
+#!/bin/bash
+
+OPTION1="connect"
+OPTION2="break"
+OPTIONS="$OPTION1\n$OPTION2"
+
+
+SELECTED="$(echo -e "$OPTIONS" | rofi -lines 2 -dmenu -p "Wireguard VPN")"
+
+case $SELECTED in
+  $OPTION1)
+    basename -s .conf $(ls /etc/wireguard) | rofi -dmenu -p "Select to connect" | xargs -ro -d "\n" wg-quick up $*
+	;;
+  $OPTION2)
+    wg 2>&1 | grep interface | cut -f5 -d " " | sed 's/://g' | rofi -dmenu -p "Select to disconnect"| xargs -ro -d "\n" wg-quick down $*
+    ;;
+esac
