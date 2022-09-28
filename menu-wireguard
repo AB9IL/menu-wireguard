@@ -1,24 +1,52 @@
 #!/bin/bash
 
-# Copyright (c) 2021 by Philip Collier, radio AB9IL.
+# Copyright (c) 2021 by Philip Collier, github.com/AB9IL
 # This script is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version. There is NO warranty; not even for
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-OPTION1="connect"
-OPTION2="break"
-OPTIONS="$OPTION1\n$OPTION2"
+# Run this script as a regular user
 
+main(){
+IPTABLES_BACKUP="/tmp/iptables.backup"
+OPTION1="Connect"
+OPTION2="Disconnect"
+OPTION3="Copy configs"
+OPTION4="Quit"
 
-SELECTED="$(echo -e "$OPTIONS" | rofi -lines 2 -dmenu -p "Wireguard VPN")"
+OPTIONS="$OPTION1\n$OPTION2\n$OPTION3\n$OPTION4"
+
+SELECTED="$(echo -e "$OPTIONS" | rofi -lines 4 -dmenu -p "Wireguard VPN")"
 
 case $SELECTED in
   $OPTION1)
-    basename -s .conf $(ls /etc/wireguard) | rofi -dmenu -p "Select to connect" | xargs -ro -d "\n" wg-quick up $*
-    ;;
+    # connect
+    [[ -f "$IPTABLES_BACKUP" ]] || sudo iptables-save > $IPTABLES_BACKUP
+    basename -s .conf $(ls /etc/wireguard) | rofi -dmenu -p "Select to connect" | \
+    xargs -I {} wg-quick up "{}"
+    exit 0
+	;;
   $OPTION2)
-    wg 2>&1 | grep interface | cut -f5 -d " " | sed 's/://g' | rofi -dmenu -p "Select to disconnect"| xargs -ro -d "\n" wg-quick down $*
+    # disconnect
+    wg 2>&1 | grep interface | awk '{print $5}' | sed 's/://g' | \
+        rofi -dmenu -p "Select to disconnect"| xargs -I {} wg-quick down "{}"
+    [[ -f "$IPTABLES_BACKUP" ]] && sudo iptables-save > $IPTABLES_BACKUP
+    main
+    ;;
+  $OPTION3)
+    # copy conf files
+    fd -d 2 -t file -e conf . | \
+    rofi -dmenu -p "Select to copy" -multi-select -mesg "Shift + Enter to multi select" | \
+    xargs -I{} sudo cp -f "{}" /etc/wireguard/; sudo chmod 640 /etc/wireguard/*.conf
+    main
+    ;;
+  $OPTION4)
+    # exit the script
+    exit 0
     ;;
 esac
+}
+
+main
