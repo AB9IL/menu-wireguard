@@ -1,4 +1,5 @@
 #!/bin/bash
+    #
 
 # Copyright (c) 2021 by Philip Collier, github.com/AB9IL
 # This script is free software; you can redistribute it and/or modify
@@ -13,36 +14,54 @@ main(){
 IPTABLES_BACKUP="/tmp/iptables.backup"
 OPTION1="Connect"
 OPTION2="Disconnect"
-OPTION3="Copy configs"
-OPTION4="Quit"
+OPTION3="Switch Server"
+OPTION4="Import configs"
+OPTION5="Quit"
 
 OPTIONS="$OPTION1\n$OPTION2\n$OPTION3\n$OPTION4"
 
 SELECTED="$(echo -e "$OPTIONS" | rofi -lines 4 -dmenu -p "Wireguard VPN")"
 
-case $SELECTED in
-  $OPTION1)
-    # connect
-    [[ -f "$IPTABLES_BACKUP" ]] || sudo iptables-save > $IPTABLES_BACKUP
+connect(){
+    [[ -f "$IPTABLES_BACKUP" ]] || sudo iptables-save | sudo tee $IPTABLES_BACKUP
     basename -s .conf $(ls /etc/wireguard) | rofi -dmenu -p "Select to connect" | \
     xargs -I {} wg-quick up "{}"
-    exit 0
-	;;
-  $OPTION2)
-    # disconnect
+}
+
+disconnect(){ 
     wg 2>&1 | grep interface | awk '{print $5}' | sed 's/://g' | \
         rofi -dmenu -p "Select to disconnect"| xargs -I {} wg-quick down "{}"
-    [[ -f "$IPTABLES_BACKUP" ]] && sudo iptables-save > $IPTABLES_BACKUP
-    main
-    ;;
-  $OPTION3)
-    # copy conf files
+    [[ -f "$IPTABLES_BACKUP" ]] && sudo iptables-save | sudo tee $IPTABLES_BACKUP
+}
+
+import(){
     fd -d 2 -t file -e conf . | \
     rofi -dmenu -p "Select to copy" -multi-select -mesg "Shift + Enter to multi select" | \
     xargs -I{} sudo cp -f "{}" /etc/wireguard/; sudo chmod 640 /etc/wireguard/*.conf
     main
+}
+
+case $SELECTED in
+  $OPTION1)
+    # connect
+    connect
+    exit 0
+	;;
+  $OPTION2)
+    # disconnect
+    disconnect
+    main
+    ;;
+  $OPTION3)
+    # switch
+    disconnect 
+    connect
     ;;
   $OPTION4)
+    # copy conf files
+    import
+    ;;
+  $OPTION5)
     # exit the script
     exit 0
     ;;
