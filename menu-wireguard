@@ -1,5 +1,5 @@
 #!/bin/bash
-    #
+
 
 # Copyright (c) 2021 by Philip Collier, github.com/AB9IL
 # This script is free software; you can redistribute it and/or modify
@@ -18,9 +18,9 @@ OPTION3="Switch Server"
 OPTION4="Import configs"
 OPTION5="Quit"
 
-OPTIONS="$OPTION1\n$OPTION2\n$OPTION3\n$OPTION4"
+OPTIONS="$OPTION1\n$OPTION2\n$OPTION3\n$OPTION4\n$OPTION5"
 
-SELECTED="$(echo -e "$OPTIONS" | rofi -lines 4 -dmenu -p "Wireguard VPN")"
+SELECTED="$(echo -e "$OPTIONS" | rofi -lines 5 -dmenu -p "Wireguard VPN")"
 
 connect(){
     [[ -f "$IPTABLES_BACKUP" ]] || sudo iptables-save | sudo tee $IPTABLES_BACKUP
@@ -32,6 +32,16 @@ disconnect(){
     wg 2>&1 | grep interface | awk '{print $5}' | sed 's/://g' | \
         rofi -dmenu -p "Select to disconnect"| xargs -I {} wg-quick down "{}"
     [[ -f "$IPTABLES_BACKUP" ]] && sudo iptables-save | sudo tee $IPTABLES_BACKUP
+}
+
+switch(){
+    # make selections
+    out_server="$(wg 2>&1 | grep interface | awk '{print $5}' | sed 's/://g' | \
+        rofi -dmenu -p "Select to disconnect")"
+    in_server="$(basename -s .conf $(ls /etc/wireguard) | rofi -dmenu -p "Select to connect")"
+    # break then make connection
+    wg-quick down "${out_server}"; wg-quick up "${in_server}"
+    [[ -f "$IPTABLES_BACKUP" ]] || sudo iptables-save | sudo tee $IPTABLES_BACKUP
 }
 
 import(){
@@ -54,8 +64,8 @@ case $SELECTED in
     ;;
   $OPTION3)
     # switch
-    disconnect 
-    connect
+    switch 
+    exit 0
     ;;
   $OPTION4)
     # copy conf files
